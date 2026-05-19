@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>&#21453;&#25033;&#26178;&#38291;&#28204;&#35430;</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f7f5ef;
+            --panel: #ffffff;
+            --ink: #18212f;
+            --muted: #677183;
+            --border: #d8d1c2;
+            --accent: #0f766e;
+            --accent-dark: #115e59;
+            --warn: #c2410c;
+            --ready: #fef3c7;
+            --go: #22c55e;
+            --go-soft: #dcfce7;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            min-height: 100%;
+            margin: 0;
+        }
+
+        body {
+            display: flex;
+            align-items: stretch;
+            justify-content: center;
+            padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+            background: var(--bg);
+            color: var(--ink);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        main {
+            width: min(100%, 920px);
+            min-height: calc(100dvh - 36px);
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            gap: 18px;
+        }
+
+        header {
+            text-align: center;
+            padding-top: 8px;
+        }
+
+        h1 {
+            margin: 0 0 10px;
+            font-size: clamp(34px, 6vw, 68px);
+            line-height: 1.05;
+            letter-spacing: 0;
+        }
+
+        p {
+            max-width: 710px;
+            margin: 0 auto;
+            color: var(--muted);
+            font-size: clamp(17px, 2.4vw, 23px);
+            line-height: 1.55;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 18px;
+            flex-wrap: wrap;
+        }
+
+        #mode-button {
+            min-height: 52px;
+            padding: 0 22px;
+            border: 2px solid var(--accent);
+            border-radius: 8px;
+            background: #ffffff;
+            color: var(--accent-dark);
+            font: inherit;
+            font-size: clamp(17px, 2.2vw, 21px);
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        #mode-button:active {
+            transform: scale(0.98);
+        }
+
+        .mode-label {
+            color: var(--muted);
+            font-size: clamp(16px, 2vw, 20px);
+            font-weight: 700;
+        }
+
+        #tap-area {
+            width: 100%;
+            min-height: 420px;
+            border: 3px solid var(--border);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px;
+            background: var(--panel);
+            color: var(--ink);
+            cursor: pointer;
+            text-align: center;
+            user-select: none;
+            -webkit-user-select: none;
+            transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 100ms ease;
+        }
+
+        #tap-area:active {
+            transform: scale(0.992);
+        }
+
+        #tap-area.waiting {
+            border-color: var(--warn);
+            background: var(--ready);
+        }
+
+        #tap-area.go {
+            border-color: var(--accent);
+            background: var(--go-soft);
+        }
+
+        #tap-area.go.color-mode {
+            background: var(--go);
+            color: #ffffff;
+        }
+
+        #message {
+            max-width: 760px;
+            font-size: clamp(34px, 7vw, 78px);
+            font-weight: 800;
+            line-height: 1.18;
+        }
+
+        footer {
+            min-height: 104px;
+            display: grid;
+            place-items: center;
+            text-align: center;
+        }
+
+        #result {
+            margin: 0;
+            color: var(--accent-dark);
+            font-size: clamp(30px, 5.4vw, 62px);
+            line-height: 1.15;
+        }
+
+        .sub-result {
+            display: block;
+            margin-top: 10px;
+            color: var(--muted);
+            font-size: clamp(16px, 2.3vw, 22px);
+            font-weight: 500;
+        }
+
+        @media (orientation: landscape) and (max-height: 720px) {
+            main {
+                min-height: calc(100dvh - 24px);
+                gap: 12px;
+            }
+
+            header {
+                padding-top: 0;
+            }
+
+            .controls {
+                margin-top: 12px;
+            }
+
+            #tap-area {
+                min-height: 300px;
+            }
+
+            footer {
+                min-height: 78px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <header>
+            <h1>&#21453;&#25033;&#26178;&#38291;&#28204;&#35430;</h1>
+            <p id="instruction"></p>
+            <div class="controls">
+                <button id="mode-button" type="button"></button>
+                <span id="mode-label" class="mode-label"></span>
+            </div>
+        </header>
+
+        <section id="tap-area" role="button" aria-live="polite" tabindex="0">
+            <div id="message"></div>
+        </section>
+
+        <footer>
+            <h2 id="result"></h2>
+        </footer>
+    </main>
+
+    <script>
+        const tapArea = document.getElementById("tap-area");
+        const message = document.getElementById("message");
+        const result = document.getElementById("result");
+        const instruction = document.getElementById("instruction");
+        const modeButton = document.getElementById("mode-button");
+        const modeLabel = document.getElementById("mode-label");
+        const bell = new Audio("xm4076.wav");
+
+        const text = {
+            title: "\u53cd\u61c9\u6642\u9593\u6e2c\u8a66",
+            soundInstruction: "\u9ede\u4e00\u4e0b\u958b\u59cb\u3002\u807d\u5230\u9234\u8072\u5f8c\uff0c\u7acb\u5373\u6309\u4e0b\u756b\u9762\uff0c\u7cfb\u7d71\u6703\u986f\u793a\u4f60\u7684\u53cd\u61c9\u6642\u9593\u3002",
+            colorInstruction: "\u9ede\u4e00\u4e0b\u958b\u59cb\u3002\u770b\u5230\u756b\u9762\u8f49\u6210\u7da0\u8272\u5f8c\uff0c\u7acb\u5373\u6309\u4e0b\u756b\u9762\uff0c\u6b64\u6a21\u5f0f\u4e0d\u6703\u97ff\u9234\u3002",
+            soundMode: "\u9234\u8072\u6a21\u5f0f",
+            colorMode: "\u984f\u8272\u6a21\u5f0f",
+            switchToColor: "\u5207\u63db\u5230\u984f\u8272\u6e2c\u8a66",
+            switchToSound: "\u5207\u63db\u5230\u9234\u8072\u6e2c\u8a66",
+            start: "\u6309\u4e0b\u958b\u59cb",
+            restart: "\u6309\u4e0b\u91cd\u65b0\u958b\u59cb",
+            again: "\u518d\u6e2c\u4e00\u6b21",
+            waitSound: "\u6e96\u5099\u597d... \u7b49\u9234\u8072",
+            waitColor: "\u6e96\u5099\u597d... \u7b49\u984f\u8272\u8f49\u8b8a",
+            press: "\u6309\u4e0b\uff01",
+            early: "\u592a\u65e9\u4e86",
+            earlyHintSound: "\u8acb\u7b49\u5230\u807d\u898b\u9234\u8072\u5f8c\u624d\u6309\u4e0b\u3002",
+            earlyHintColor: "\u8acb\u7b49\u5230\u756b\u9762\u8f49\u6210\u7da0\u8272\u5f8c\u624d\u6309\u4e0b\u3002",
+            resultHint: "\u6309\u4e0b\u756b\u9762\u53ef\u91cd\u65b0\u958b\u59cb\u3002",
+            second: "\u79d2"
+        };
+
+        bell.preload = "auto";
+
+        let mode = "sound";
+        let state = "idle";
+        let timeoutId = 0;
+        let startTime = 0;
+        let soundReady = false;
+
+        modeButton.addEventListener("click", switchMode);
+        tapArea.addEventListener("pointerdown", handlePress);
+        tapArea.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                handlePress(event);
+            }
+        });
+
+        updateModeUi();
+        resetToIdle(text.start, "");
+
+        async function handlePress(event) {
+            event.preventDefault();
+
+            if (state === "idle") {
+                await startTest();
+                return;
+            }
+
+            if (state === "waiting") {
+                const hint = mode === "sound" ? text.earlyHintSound : text.earlyHintColor;
+                resetToIdle(text.restart, `${text.early}<span class="sub-result">${hint}</span>`);
+                return;
+            }
+
+            if (state === "go") {
+                const seconds = (performance.now() - startTime) / 1000;
+                resetToIdle(text.again, `${seconds.toFixed(2)} ${text.second}<span class="sub-result">${text.resultHint}</span>`);
+            }
+        }
+
+        async function startTest() {
+            state = "waiting";
+            tapArea.className = "waiting";
+            message.textContent = mode === "sound" ? text.waitSound : text.waitColor;
+            result.textContent = "";
+
+            if (mode === "sound") {
+                await unlockSound();
+            }
+
+            const delay = 1800 + Math.random() * 3200;
+            timeoutId = window.setTimeout(() => {
+                state = "go";
+                tapArea.className = mode === "color" ? "go color-mode" : "go";
+                message.textContent = text.press;
+
+                if (mode === "sound") {
+                    playBell();
+                }
+
+                startTime = performance.now();
+            }, delay);
+        }
+
+        function switchMode() {
+            mode = mode === "sound" ? "color" : "sound";
+            updateModeUi();
+            resetToIdle(text.start, "");
+        }
+
+        function resetToIdle(nextMessage, resultHtml) {
+            clearTimeout(timeoutId);
+            state = "idle";
+            tapArea.className = "";
+            message.textContent = nextMessage;
+            result.innerHTML = resultHtml;
+        }
+
+        function updateModeUi() {
+            const isSound = mode === "sound";
+            instruction.textContent = isSound ? text.soundInstruction : text.colorInstruction;
+            modeButton.textContent = isSound ? text.switchToColor : text.switchToSound;
+            modeLabel.textContent = isSound ? text.soundMode : text.colorMode;
+            modeButton.setAttribute("aria-label", modeButton.textContent);
+        }
+
+        async function unlockSound() {
+            if (soundReady) return;
+
+            try {
+                bell.volume = 0;
+                await bell.play();
+                bell.pause();
+                bell.currentTime = 0;
+                bell.volume = 1;
+                soundReady = true;
+            } catch (error) {
+                bell.volume = 1;
+            }
+        }
+
+        function playBell() {
+            bell.pause();
+            bell.currentTime = 0;
+            bell.play().catch(() => {
+                message.textContent = text.press;
+            });
+        }
+    </script>
+</body>
+</html>
