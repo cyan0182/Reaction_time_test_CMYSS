@@ -221,6 +221,7 @@
         const modeButton = document.getElementById("mode-button");
         const modeLabel = document.getElementById("mode-label");
         const bell = new Audio("xm4076.wav");
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 
         const text = {
             title: "\u53cd\u61c9\u6642\u9593\u6e2c\u8a66",
@@ -249,6 +250,7 @@
         let state = "idle";
         let timeoutId = 0;
         let startTime = 0;
+        let audioContext = null;
         let soundReady = false;
 
         modeButton.addEventListener("click", switchMode);
@@ -298,12 +300,11 @@
                 state = "go";
                 tapArea.className = mode === "color" ? "go color-mode" : "go";
                 message.textContent = text.press;
+                startTime = performance.now();
 
                 if (mode === "sound") {
                     playBell();
                 }
-
-                startTime = performance.now();
             }, delay);
         }
 
@@ -330,14 +331,31 @@
         }
 
         async function unlockSound() {
-            if (soundReady) return;
+            if (soundReady && (!audioContext || audioContext.state === "running")) return;
 
             try {
-                bell.volume = 0;
-                await bell.play();
-                bell.pause();
-                bell.currentTime = 0;
-                bell.volume = 1;
+                if (AudioContextClass) {
+                    audioContext = audioContext || new AudioContextClass();
+
+                    if (audioContext.state !== "running") {
+                        await audioContext.resume();
+                    }
+
+                    const silent = audioContext.createOscillator();
+                    const silentGain = audioContext.createGain();
+                    silentGain.gain.value = 0;
+                    silent.connect(silentGain);
+                    silentGain.connect(audioContext.destination);
+                    silent.start();
+                    silent.stop(audioContext.currentTime + 0.01);
+                } else {
+                    bell.volume = 0;
+                    await bell.play();
+                    bell.pause();
+                    bell.currentTime = 0;
+                    bell.volume = 1;
+                }
+
                 soundReady = true;
             } catch (error) {
                 bell.volume = 1;
@@ -345,6 +363,35 @@
         }
 
         function playBell() {
+            if (audioContext && audioContext.state === "running") {
+                const now = audioContext.currentTime;
+                const gain = audioContext.createGain();
+                const toneA = audioContext.createOscillator();
+                const toneB = audioContext.createOscillator();
+
+                gain.gain.setValueAtTime(0.0001, now);
+                gain.gain.exponentialRampToValueAtTime(0.45, now + 0.015);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.42);
+
+                toneA.type = "sine";
+                toneA.frequency.setValueAtTime(880, now);
+                toneA.frequency.setValueAtTime(1175, now + 0.18);
+
+                toneB.type = "triangle";
+                toneB.frequency.setValueAtTime(1760, now);
+                toneB.frequency.setValueAtTime(2350, now + 0.18);
+
+                toneA.connect(gain);
+                toneB.connect(gain);
+                gain.connect(audioContext.destination);
+
+                toneA.start(now);
+                toneB.start(now);
+                toneA.stop(now + 0.43);
+                toneB.stop(now + 0.43);
+                return;
+            }
+
             bell.pause();
             bell.currentTime = 0;
             bell.play().catch(() => {
